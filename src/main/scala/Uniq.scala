@@ -5,45 +5,30 @@ object Driver {
   def main(args: Array[String]) {
     val options= parseArgs(args)
 
-    val numChars = options.numChars
-    val numFields = options.numFields
-
-    val setting = options.setting
-    val isInsensitive = options.insensitive
-
-    val source = options.input match {
-      case Some("-") => Source.stdin
-      case Some(filename) => Source.fromFile(filename)
-      case None => Source.stdin
+    val source = options.input.getOrElse("-") match {
+      case "-" => Source.stdin
+      case filename => Source.fromFile(filename)
     }
+
     var counter = 1
 
     var prevLine: Option[String] = None
     var prevFullLine: String = ""
     for (line <- source.getLines()) {
-      val mutantLine = transformLine(line, numFields, numChars, isInsensitive)
+      val mutantLine = transformLine(line, options)
+
       prevLine match {
-        case Some(contents) => {
-          if (contents == mutantLine) {
-            counter += 1
-          }
-          else {
-            printNontrivial(prevLine, prevFullLine, counter, setting)
-            counter = 1
-            prevLine = Some(mutantLine)
-            prevFullLine = line
-          }
-        }
+        case Some(contents) if contents equals mutantLine => counter += 1
         case other => {
-          printNontrivial(prevLine, prevFullLine, counter, setting)
+          printNontrivial(prevLine, prevFullLine, counter, options.setting)
           counter = 1
           prevLine = Some(mutantLine)
           prevFullLine = line
         }
       }
     }
-    printNontrivial(prevLine, prevFullLine, counter, setting)
 
+    printNontrivial(prevLine, prevFullLine, counter, options.setting)
     source.close()
   }
 
@@ -133,24 +118,19 @@ object Driver {
     }
   }
 
-  private[this] def parseTuple(tuple: Tuple3[Boolean, Boolean, Boolean]): Int = {
-    tuple match {
-      case Tuple3(true, false, false) => 0
-      case Tuple3(false, false, false) => 3
-      case Tuple3(false, true, true) => 3
-      case Tuple3(false, true, false) => 1
-      case Tuple3(false, false, true) => 2
-      case other => 4
-    }
+  private[this] def parseTuple(
+    tuple: Tuple3[Boolean, Boolean, Boolean]): Int = tuple match {
+    case Tuple3(true, false, false) => 0
+    case Tuple3(false, true, false) => 1
+    case Tuple3(false, false, true) => 2
+    case Tuple3(false, x, y) => 3
+    case other => 4
   }
 
-  private[this] def transformLine(line: String,
-                                  numFields: Int,
-                                  numChars: Int,
-                                  isInsensitive: Boolean): String = {
-    val mutated = fieldCut(line, numFields).substring(numChars)
-    if (isInsensitive) {
-      upperCase(mutated)
+  private[this] def transformLine(line: String, options: Options): String = {
+    val mutated = fieldCut(line, options.numFields).substring(options.numChars)
+    if (options.insensitive) {
+      mutated.toUpperCase
     }
     else {
       mutated
@@ -160,47 +140,27 @@ object Driver {
   private[this] def printNontrivial(prevLine: Option[String],
                                     line: String,
                                     counter: Int,
-                                    setting: Int) {
-    prevLine match {
-      case None => ""
-      case Some(stri) => uniqPrinter(line, counter, setting)
-    }
-  }
-
-  private[this] def upperCase(line: String): String = {
-    line map (_.toUpper)
+                                    setting: Int) = prevLine match {
+    case None => ""
+    case Some(stri) => uniqPrinter(line, counter, setting)
   }
 
   private[this] def uniqPrinter(line: String, counter: Int, setting: Int) {
-    setting match {
-      case 0 => println(counter + " " + line)
-      case 1 => if (counter > 0) println(line)
-      case 2 => if (counter == 0) println(line)
-      case 3 => println(line)
+    print(setting match {
+      case 0 => "%d %s\n".format(counter, line)
+      case 1 => if (counter == 0) "%s\n".format(line) else ""
+      case 2 => if (counter > 0) "%s\n".format(line) else ""
+      case 3 => "%s\n".format(line)
       case other => throw new Exception("Bad argument.")
-    }
+    })
   }
 
-  private[this] def fieldCut(line: String, numFields: Int): String = {
+  private[this] def fieldCut(line: String, numFields: Int): String =
     numFields match {
       case 0 => line
-      case remaining => fieldCut(cutOneField(line), numFields - 1)
+      case x if x < 0 => throw new IllegalArgumentException("Invalid field number")
+      case y => """\S+""".r.findAllIn(line).matchData.drop(numFields - 1).next().after.toString
     }
-  }
-
-  private[this] def cutOneField(line: String): String = {
-    line.charAt(0) match {
-      case ' ' => cutOneField(line.substring(1))
-      case nonSpace => cutNonspaces(line.substring(1))
-    }
-  }
-
-  private[this] def cutNonspaces(line: String): String = {
-    line.charAt(0) match {
-      case ' ' => line
-      case nonSpace => cutNonspaces(line.substring(1))
-    }
-  }
 
   case class Options(numChars: Int,
                      numFields: Int,
