@@ -1,4 +1,5 @@
 import scala.io.Source
+import java.util.Arrays
 
 object Driver {
   def main(args: Array[String]) {
@@ -94,7 +95,7 @@ object Driver {
                                 tuple: Tuple3[Boolean, Boolean, Boolean],
                                 insensitive: Boolean): Options = {
     if (args(0).length == 0) {
-      makeOptions(arrayCopy(args, 1, args.length), numChars, numFields, tuple,
+      makeOptions(args.slice(1, args.length), numChars, numFields, tuple,
                    insensitive)
     }
     else {
@@ -109,35 +110,27 @@ object Driver {
                                    true)
         case 'f' => {
           if (args(0).length > 1) {
-            makeOptions(arrayCopy(args, 1, args.length), numChars,
+            makeOptions(args.slice(1, args.length), numChars,
                          args(0).substring(1).toInt, tuple, insensitive)
           }
           else {
-            makeOptions(arrayCopy(args, 2, args.length), numChars,
+            makeOptions(args.slice(2, args.length), numChars,
                          args(1).toInt, tuple, insensitive)
           }
         }
         case 's' => {
           if (args(0).length > 1) {
-            makeOptions(arrayCopy(args, 1, args.length), args(0).substring(1).toInt,
+            makeOptions(args.slice(1, args.length), args(0).substring(1).toInt,
                          numFields, tuple, insensitive)
           }
           else {
-            makeOptions(arrayCopy(args, 2, args.length), args(1).toInt,
+            makeOptions(args.slice(2, args.length), args(1).toInt,
                          numFields, tuple, insensitive)
           }
         }
         case other => throw new IllegalArgumentException("Not a valid argument")
       }
     }
-  }
-
-  private[this] def arrayCopy[A](arr: Array[A], start: Int, end: Int)(implicit manifest: Manifest[A]): Array[A] = {
-    val ret = new Array[A](end - start)
-    for (pos <- start until end) {
-      ret(pos - start) = arr(pos)
-    }
-    ret
   }
 
   private[this] def parseTuple(tuple: Tuple3[Boolean, Boolean, Boolean]): Int = {
