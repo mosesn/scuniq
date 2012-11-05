@@ -11,7 +11,7 @@ object Driver {
       case filename => Source.fromFile(filename)
     }
 
-    var counter = 1p
+    var counter = 1
 
     var prevLine: Option[String] = None
     var prevFullLine: String = ""
