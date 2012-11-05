@@ -1,5 +1,6 @@
 import scala.io.Source
 import java.util.Arrays
+import com.mosesn.pirate.Pirate
 
 object Driver {
   def main(args: Array[String]) {
@@ -10,7 +11,7 @@ object Driver {
       case filename => Source.fromFile(filename)
     }
 
-    var counter = 1
+    var counter = 1p
 
     var prevLine: Option[String] = None
     var prevFullLine: String = ""
@@ -31,91 +32,16 @@ object Driver {
     printNontrivial(prevLine, prevFullLine, counter, options.setting)
     source.close()
   }
+  case class Options(numChars: Int,
+                     numFields: Int,
+                     setting: Int,
+                     insensitive: Boolean,
+                     input: Option[String],
+                     output: Option[String])
 
   private[this] def parseArgs(args: Array[String]): Options = {
-    makeOptions(args, 0, 0, Tuple3(false, false, false), false)
-  }
-
-  private[this] def makeOptions(args: Array[String],
-                                numChars: Int,
-                                numFields: Int,
-                                tuple: Tuple3[Boolean, Boolean, Boolean],
-                                insensitive: Boolean): Options = {
-    args.length match {
-      case 0 => Options(numChars, numFields, parseTuple(tuple), insensitive, None,
-                        None)
-      case other => {
-        if (args(0).charAt(0) equals '-') {
-          processOptions(removeChar(args), numChars, numFields, tuple, insensitive)
-        }
-        else {
-          if (other == 2) {
-            Options(numChars, numFields, parseTuple(tuple), insensitive,
-                    Some(args(0)), Some(args(1)))
-          }
-          else if (other == 1) {
-            Options(numChars, numFields, parseTuple(tuple), insensitive,
-                    Some(args(0)), None)
-          }
-          else {
-            throw new IllegalArgumentException("Wrong number of arguments.")
-          }
-        }
-      }
-    }
-  }
-
-  private[this] def removeChar(args: Array[String]): Array[String] = {
-    val ret = new Array[String](args.length)
-    ret(0) = args(0).substring(1)
-    for (pos <- 1 until args.length) {
-      ret(pos) = args(pos)
-    }
-    ret
-  }
-
-  private[this] def processOptions(args: Array[String],
-                                numChars: Int,
-                                numFields: Int,
-                                tuple: Tuple3[Boolean, Boolean, Boolean],
-                                insensitive: Boolean): Options = {
-    if (args(0).length == 0) {
-      makeOptions(args.slice(1, args.length), numChars, numFields, tuple,
-                   insensitive)
-    }
-    else {
-      args(0).charAt(0) match {
-        case 'c' => processOptions(removeChar(args), numChars, numFields,
-                                   Tuple3(true, tuple._2, tuple._3), insensitive)
-        case 'd' => processOptions(removeChar(args), numChars, numFields,
-                                   Tuple3(tuple._1, true, tuple._3), insensitive)
-        case 'u' => processOptions(removeChar(args), numChars, numFields,
-                                   Tuple3(tuple._1, tuple._2, true), insensitive)
-        case 'i' => processOptions(removeChar(args), numChars, numFields, tuple,
-                                   true)
-        case 'f' => {
-          if (args(0).length > 1) {
-            makeOptions(args.slice(1, args.length), numChars,
-                         args(0).substring(1).toInt, tuple, insensitive)
-          }
-          else {
-            makeOptions(args.slice(2, args.length), numChars,
-                         args(1).toInt, tuple, insensitive)
-          }
-        }
-        case 's' => {
-          if (args(0).length > 1) {
-            makeOptions(args.slice(1, args.length), args(0).substring(1).toInt,
-                         numFields, tuple, insensitive)
-          }
-          else {
-            makeOptions(args.slice(2, args.length), args(1).toInt,
-                         numFields, tuple, insensitive)
-          }
-        }
-        case other => throw new IllegalArgumentException("Not a valid argument")
-      }
-    }
+    val a = Pirate("[-cdu] [-i] [-f int] [-s int] [input [output]]")(args)
+    Options(a.intMap.getOrElse('f', 0), a.intMap.getOrElse('s', 0), parseTuple(a.flags.contains('c'), a.flags.contains('d'), a.flags.contains('u')), a.flags.contains('i'), a.strings.get("input"), a.strings.get("output"))
   }
 
   private[this] def parseTuple(
@@ -162,10 +88,4 @@ object Driver {
       case y => """\S+""".r.findAllIn(line).matchData.drop(numFields - 1).next().after.toString
     }
 
-  case class Options(numChars: Int,
-                     numFields: Int,
-                     setting: Int,
-                     insensitive: Boolean,
-                     input: Option[String],
-                     output: Option[String])
 }
